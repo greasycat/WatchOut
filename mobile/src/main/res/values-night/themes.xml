@@ -1,0 +1,20 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.WatchOut" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/claude_orange_light</item>
+        <item name="colorOnPrimary">#3A1A0C</item>
+        <item name="colorPrimaryContainer">#7A3D26</item>
+        <item name="colorOnPrimaryContainer">@color/claude_orange_container</item>
+        <item name="colorSecondary">@color/claude_orange_light</item>
+        <item name="colorOnSecondary">#3A1A0C</item>
+        <item name="colorSecondaryContainer">#7A3D26</item>
+        <item name="colorOnSecondaryContainer">@color/claude_orange_container</item>
+        <item name="android:colorBackground">@color/night_bg</item>
+        <item name="colorSurface">@color/night_card</item>
+        <item name="colorSurfaceVariant">@color/night_bg</item>
+        <item name="colorOnSurface">@color/night_ink</item>
+        <item name="colorOnSurfaceVariant">@color/night_ink_muted</item>
+        <item name="colorOutlineVariant">@color/night_hairline</item>
+        <item name="android:statusBarColor">@color/night_bg</item>
+    </style>
+</resources>

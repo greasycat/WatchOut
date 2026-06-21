@@ -1,0 +1,45 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py"
+          }
+        ]
+      }
+    ]
+  }
+}
