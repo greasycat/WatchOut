@@ -16,7 +16,7 @@ local.properties
 
 # Firebase / FCM secrets — never commit
 google-services.json
-tools/fcm_config.json
+tools/config.json
 **/serviceAccountKey*.json
 **/*-firebase-adminsdk-*.json
 tools/.venv/

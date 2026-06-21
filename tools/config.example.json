@@ -1,0 +1,16 @@
+{
+  "transport": "fcm",
+
+  "_fcm": "transport=fcm — push, works in background. Needs a Firebase project.",
+  "service_account": "/absolute/path/to/serviceAccountKey.json",
+  "project_id": "your-firebase-project-id",
+  "device_token": "paste-the-token-shown-in-the-phone-app",
+
+  "_direct": "transport=direct — POST straight to the phone (LAN/Tailscale). direct_host optional (mDNS auto-discovers via the zeroconf pip package).",
+  "direct_host": "192.168.1.50",
+  "direct_port": 8787,
+
+  "_ntfy": "transport=ntfy — publish to an ntfy topic the phone subscribes to.",
+  "ntfy_server": "https://ntfy.sh",
+  "ntfy_topic": "watchout-pick-something-random"
+}

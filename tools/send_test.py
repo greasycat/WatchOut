@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Send a battery of test status messages through FCM to eyeball how each one
-renders on the phone / watch. Reuses notify_fcm.send(), so it exercises the real
+renders on the phone / watch. Reuses notify.send(), so it exercises the real
 data payload the phone's onMessageReceived() will see.
 
     tools/.venv/bin/python tools/send_test.py             # send all, 4s apart
@@ -16,7 +16,7 @@ import argparse
 import sys
 import time
 
-import notify_fcm  # same dir; its top-level imports are stdlib-only
+import notify  # same dir; its top-level imports are stdlib-only
 
 # label -> data payload exactly as the phone's onMessageReceived() receives it.
 BATTERY = {
@@ -67,7 +67,7 @@ def main() -> int:
         data = {**BATTERY[name], "session": args.session, "project": args.project}
         print(f"[{name}] {data}")
         if not args.dry_run:
-            notify_fcm.send(data)
+            notify.send(data)
             if i < len(cases) - 1:
                 time.sleep(args.delay)
     return 0

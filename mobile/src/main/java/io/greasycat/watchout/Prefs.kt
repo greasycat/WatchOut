@@ -26,10 +26,24 @@ object Prefs {
     const val ACTION_STATUS = "io.greasycat.watchout.STATUS"
     const val DEFAULT_EVENT_COUNT = 5
 
+    const val TRANSPORT_FCM = "fcm"
+    const val TRANSPORT_DIRECT = "direct"
+    const val TRANSPORT_NTFY = "ntfy"
+    const val DEFAULT_DIRECT_PORT = 8787
+    const val DEFAULT_NTFY_SERVER = "https://ntfy.sh"
+
     private const val NAME = "watchout"
     private const val KEY_SESSIONS = "sessions_v2" // {order:[ids], map:{id:obj}}
     private const val KEY_EVENT_COUNT = "event_count"
     private const val KEY_PERSISTENT = "persistent"
+    private const val KEY_TRANSPORT = "transport"
+    private const val KEY_DIRECT_PORT = "direct_port"
+    private const val KEY_NTFY_SERVER = "ntfy_server"
+    private const val KEY_NTFY_TOPIC = "ntfy_topic"
+    private const val KEY_FCM_PROJECT = "fcm_project_id"
+    private const val KEY_FCM_SENDER = "fcm_sender_id"
+    private const val KEY_FCM_APP_ID = "fcm_app_id"
+    private const val KEY_FCM_API_KEY = "fcm_api_key"
 
     private const val SESSION_CAP = 10
     private const val EVENT_CAP = 50
@@ -46,6 +60,57 @@ object Prefs {
 
     fun setPersistent(context: Context, on: Boolean) =
         prefs(context).edit().putBoolean(KEY_PERSISTENT, on).apply()
+
+    // --- transport ---
+    fun transport(context: Context): String =
+        prefs(context).getString(KEY_TRANSPORT, TRANSPORT_DIRECT) ?: TRANSPORT_DIRECT
+
+    fun setTransport(context: Context, t: String) =
+        prefs(context).edit().putString(KEY_TRANSPORT, t).apply()
+
+    fun directPort(context: Context): Int = prefs(context).getInt(KEY_DIRECT_PORT, DEFAULT_DIRECT_PORT)
+
+    fun setDirectPort(context: Context, p: Int) =
+        prefs(context).edit().putInt(KEY_DIRECT_PORT, p).apply()
+
+    fun ntfyServer(context: Context): String =
+        prefs(context).getString(KEY_NTFY_SERVER, DEFAULT_NTFY_SERVER) ?: DEFAULT_NTFY_SERVER
+
+    fun setNtfyServer(context: Context, s: String) =
+        prefs(context).edit().putString(KEY_NTFY_SERVER, s).apply()
+
+    fun ntfyTopic(context: Context): String = prefs(context).getString(KEY_NTFY_TOPIC, "") ?: ""
+
+    fun setNtfyTopic(context: Context, s: String) =
+        prefs(context).edit().putString(KEY_NTFY_TOPIC, s).apply()
+
+    // --- FCM config supplied at runtime (no build-time google-services.json) ---
+    fun fcmProjectId(context: Context): String = prefs(context).getString(KEY_FCM_PROJECT, "") ?: ""
+    fun fcmSenderId(context: Context): String = prefs(context).getString(KEY_FCM_SENDER, "") ?: ""
+    fun fcmAppId(context: Context): String = prefs(context).getString(KEY_FCM_APP_ID, "") ?: ""
+    fun fcmApiKey(context: Context): String = prefs(context).getString(KEY_FCM_API_KEY, "") ?: ""
+
+    fun fcmConfigured(context: Context): Boolean =
+        fcmAppId(context).isNotEmpty() && fcmApiKey(context).isNotEmpty() &&
+            fcmProjectId(context).isNotEmpty() && fcmSenderId(context).isNotEmpty()
+
+    /** Parse a pasted google-services.json into the four fields. Returns false on bad JSON. */
+    fun setFcmFromJson(context: Context, json: String): Boolean = try {
+        val o = JSONObject(json)
+        val info = o.getJSONObject("project_info")
+        val client = o.getJSONArray("client").getJSONObject(0)
+        val appId = client.getJSONObject("client_info").getString("mobilesdk_app_id")
+        val apiKey = client.getJSONArray("api_key").getJSONObject(0).getString("current_key")
+        prefs(context).edit()
+            .putString(KEY_FCM_PROJECT, info.getString("project_id"))
+            .putString(KEY_FCM_SENDER, info.getString("project_number"))
+            .putString(KEY_FCM_APP_ID, appId)
+            .putString(KEY_FCM_API_KEY, apiKey)
+            .apply()
+        true
+    } catch (e: Exception) {
+        false
+    }
 
     // --- sessions ---
     fun isActivated(context: Context): Boolean = sessionIds(context).isNotEmpty()

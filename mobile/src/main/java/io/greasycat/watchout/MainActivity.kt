@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.open_settings).setOnClickListener(openSettings)
         settingsButton.setOnClickListener(openSettings)
+        findViewById<android.widget.TextView>(R.id.transport_badge).setOnClickListener(openSettings)
         deleteButton.setOnClickListener {
             val id = adapter.ids().getOrNull(pager.currentItem) ?: return@setOnClickListener
             Prefs.deleteSession(this, id)
@@ -77,6 +78,7 @@ class MainActivity : AppCompatActivity() {
             this, statusReceiver, IntentFilter(Prefs.ACTION_STATUS),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        IngestService.sync(this) // run the direct/ntfy listener (no-op for FCM)
         refresh()
     }
 
@@ -86,6 +88,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
+        findViewById<android.widget.TextView>(R.id.transport_badge).text = when (Prefs.transport(this)) {
+            Prefs.TRANSPORT_DIRECT -> "Direct"
+            Prefs.TRANSPORT_NTFY -> "ntfy"
+            else -> "FCM"
+        }
         val ids = Prefs.sessionIds(this)
         val active = ids.isNotEmpty()
         findViewById<View>(R.id.setup_card).visibility = if (active) View.GONE else View.VISIBLE

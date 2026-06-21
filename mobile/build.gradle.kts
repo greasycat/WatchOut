@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    id("com.google.gms.google-services")
 }
 
 android {
@@ -42,9 +41,10 @@ dependencies {
     implementation(libs.material)
     implementation(libs.play.services.wearable)
     implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
-    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
     implementation("androidx.viewpager2:viewpager2:1.1.0")
+    implementation("org.nanohttpd:nanohttpd:2.3.1") // direct-mode embedded HTTP server
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // ntfy WebSocket subscriber
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

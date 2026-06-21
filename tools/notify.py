@@ -4,7 +4,7 @@
 Reads the hook JSON on stdin, classifies it, and POSTs an FCM v1 *data* message
 to the phone's device token. Wire into .claude/settings.json (see tools/README.md).
 
-Config: tools/fcm_config.json (next to this script)
+Config: tools/config.json (next to this script)
     {
       "service_account": "/abs/path/to/serviceAccountKey.json",
       "project_id": "your-firebase-project-id",
@@ -187,17 +187,22 @@ def _access_token(service_account: str) -> str:
 
 
 def send(data: dict) -> None:
+    """Dispatch to the configured transport: fcm | direct | ntfy."""
+    cfg = json.loads((HERE / "config.json").read_text())
+    transport = cfg.get("transport", "direct")
+    if transport == "direct":
+        _send_direct(cfg, data)
+    elif transport == "ntfy":
+        _send_ntfy(cfg, data)
+    else:
+        _send_fcm(cfg, data)
+
+
+def _send_fcm(cfg: dict, data: dict) -> None:
     import requests
 
-    cfg = json.loads((HERE / "fcm_config.json").read_text())
     url = f"https://fcm.googleapis.com/v1/projects/{cfg['project_id']}/messages:send"
-    body = {
-        "message": {
-            "token": cfg["device_token"],
-            "data": data,
-            "android": {"priority": "high"},
-        }
-    }
+    body = {"message": {"token": cfg["device_token"], "data": data, "android": {"priority": "high"}}}
     resp = requests.post(
         url,
         headers={
@@ -208,7 +213,68 @@ def send(data: dict) -> None:
         timeout=10,
     )
     if resp.status_code >= 300:
-        print(f"[notify_fcm] FCM {resp.status_code}: {resp.text}", file=sys.stderr)
+        print(f"[notify] FCM {resp.status_code}: {resp.text}", file=sys.stderr)
+
+
+def _send_direct(cfg: dict, data: dict) -> None:
+    import requests
+
+    host = cfg.get("direct_host") or _discover_host()
+    if not host:
+        print("[notify] direct: no host (set direct_host, or enable mDNS)", file=sys.stderr)
+        return
+    port = cfg.get("direct_port", 8787)
+    try:
+        requests.post(f"http://{host}:{port}/", json=data, timeout=4)
+    except Exception as exc:
+        print(f"[notify] direct post failed: {exc}", file=sys.stderr)
+
+
+def _send_ntfy(cfg: dict, data: dict) -> None:
+    import requests
+
+    server = (cfg.get("ntfy_server") or "https://ntfy.sh").rstrip("/")
+    topic = cfg.get("ntfy_topic")
+    if not topic:
+        print("[notify] ntfy: no topic set", file=sys.stderr)
+        return
+    try:
+        # Send the JSON as the message body (text, not application/json, so ntfy
+        # treats it as the message rather than a JSON-publish envelope).
+        requests.post(f"{server}/{topic}", data=json.dumps(data).encode(), timeout=6)
+    except Exception as exc:
+        print(f"[notify] ntfy post failed: {exc}", file=sys.stderr)
+
+
+def _discover_host():
+    """Best-effort mDNS lookup of the phone's _watchout._tcp service."""
+    try:
+        import socket
+        import time as _time
+
+        from zeroconf import ServiceBrowser, Zeroconf
+
+        found = {}
+
+        class _Listener:
+            def add_service(self, zc, type_, name):
+                info = zc.get_service_info(type_, name)
+                if info and info.addresses:
+                    found["host"] = socket.inet_ntoa(info.addresses[0])
+
+            def update_service(self, *a):
+                pass
+
+            def remove_service(self, *a):
+                pass
+
+        zc = Zeroconf()
+        ServiceBrowser(zc, "_watchout._tcp.local.", _Listener())
+        _time.sleep(1.5)
+        zc.close()
+        return found.get("host")
+    except Exception:
+        return None
 
 
 def main() -> int:
@@ -278,7 +344,7 @@ def _selftest() -> int:
     d1 = build_data({"hook_event_name": "Stop", "transcript_path": "/no", "cwd": "/home/u/MyProj/"})
     assert d1["project"] == "MyProj", d1["project"]
 
-    print("notify_fcm selftest: OK")
+    print("notify selftest: OK")
     return 0
 
 
@@ -286,5 +352,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as exc:  # a hook must never crash the session
-        print(f"[notify_fcm] {exc}", file=sys.stderr)
+        print(f"[notify] {exc}", file=sys.stderr)
         sys.exit(0)

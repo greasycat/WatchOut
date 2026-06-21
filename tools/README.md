@@ -3,7 +3,7 @@
 Event path so far:
 
 ```
-Claude Code hooks ──▶ notify_fcm.py ──▶ FCM v1 ──▶ phone app ──▶ notification (mirrors to watch)
+Claude Code hooks ──▶ notify.py ──▶ FCM v1 ──▶ phone app ──▶ notification (mirrors to watch)
 ```
 
 The watch Data Layer + tile is step 3; right now a bridged phone notification already
@@ -16,16 +16,16 @@ reaches your wrist.
 3. Download **`google-services.json`** and drop it in `mobile/` (next to `build.gradle.kts`).
    The build fails without it — that's expected until this file exists.
 4. Project settings → **Service accounts** → *Generate new private key* → save the JSON on
-   the dev machine (this is the credential `notify_fcm.py` sends with — keep it off git).
+   the dev machine (this is the credential `notify.py` sends with — keep it off git).
 
 ## Dev-machine setup
 
 ```sh
 python3 -m venv tools/.venv
 tools/.venv/bin/pip install google-auth requests
-cp tools/fcm_config.example.json tools/fcm_config.json
-# edit fcm_config.json: service_account path, project_id, device_token
-tools/.venv/bin/python tools/notify_fcm.py --selftest   # no network; checks the mapping/parse logic
+cp tools/config.example.json tools/config.json
+# edit config.json: service_account path, project_id, device_token
+tools/.venv/bin/python tools/notify.py --selftest   # no network; checks the mapping/parse logic
 ```
 
 (Arch and other PEP-668 distros block a system `pip install`; the venv sidesteps that
@@ -43,14 +43,14 @@ script. Use an absolute python + script path:
 {
   "hooks": {
     "Notification": [
-      { "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py" } ] }
+      { "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify.py" } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py" } ] }
+      { "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify.py" } ] }
     ],
     "PreToolUse": [
       { "matcher": "Edit|Write",
-        "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify_fcm.py" } ] }
+        "hooks": [ { "type": "command", "command": "/home/rongfei/AndroidStudioProjects/WatchOut/tools/.venv/bin/python /home/rongfei/AndroidStudioProjects/WatchOut/tools/notify.py" } ] }
     ]
   }
 }
@@ -63,8 +63,28 @@ script. Use an absolute python + script path:
 ## End-to-end test
 
 ```sh
-echo '{"hook_event_name":"Stop","session_id":"abc123"}' | tools/.venv/bin/python tools/notify_fcm.py
+echo '{"hook_event_name":"Stop","session_id":"abc123"}' | tools/.venv/bin/python tools/notify.py
 ```
 
 The phone (and mirrored watch) should buzz with "Claude finished". If not, the FCM HTTP
 status is logged to stderr.
+
+## Transports
+
+The hook reads `transport` from `config.json` — `fcm` (default), `direct`, or `ntfy`.
+Pick the matching transport in the phone app's Settings.
+
+### ntfy (self-host with Docker)
+
+```sh
+docker run -d --name ntfy -p 8080:80 binwiederhier/ntfy serve
+```
+
+- Phone app → Settings → **ntfy**; server `http://<host-ip>:8080` (emulator: `http://10.0.2.2:8080`), pick a topic.
+- `config.json`: `"transport":"ntfy"`, `"ntfy_server":"http://<host-ip>:8080"`, `"ntfy_topic":"<same topic>"`.
+- The app subscribes over WebSocket; the hook publishes with one HTTP POST. Plain HTTP works (the app allows cleartext).
+
+### direct (phone-as-server, LAN / Tailscale)
+
+- Phone app → Settings → **Direct**; note the shown `IP:port` and tap **Test listener**.
+- `config.json`: `"transport":"direct"`, optional `"direct_host"`/`"direct_port"` (omit host to auto-discover via mDNS — needs the `zeroconf` pip package, already in the venv).

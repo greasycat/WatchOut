@@ -1,5 +1,0 @@
-{
-  "service_account": "/absolute/path/to/serviceAccountKey.json",
-  "project_id": "your-firebase-project-id",
-  "device_token": "paste-the-token-shown-in-the-phone-app"
-}

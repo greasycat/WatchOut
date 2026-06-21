@@ -25,4 +25,19 @@
     <string name="events_heading">Events under the blob: %1$d</string>
     <string name="persistent_label">Persistent status notification</string>
     <string name="delete_session">Delete session</string>
+
+    <string name="transport_heading">Transport</string>
+    <string name="transport_fcm">Push (FCM) — background, needs Firebase</string>
+    <string name="transport_direct">Direct (LAN / Tailscale)</string>
+    <string name="transport_ntfy">ntfy</string>
+    <string name="direct_help">This phone runs a listener; point the dev machine at one of the addresses below (or let it auto-discover via mDNS).</string>
+    <string name="direct_port_hint">Port (default 8787)</string>
+    <string name="direct_test">Test listener</string>
+    <string name="ntfy_help">Subscribe to an ntfy topic — self-host or use ntfy.sh. The hook publishes to it.</string>
+    <string name="ntfy_server_hint">Server (e.g. https://ntfy.sh)</string>
+    <string name="ntfy_topic_hint">Topic</string>
+    <string name="fcm_paste_help">Paste your project\'s google-services.json, then Apply — no rebuild needed.</string>
+    <string name="fcm_paste_hint">{ "project_info": … }</string>
+    <string name="fcm_apply">Apply Firebase config</string>
+    <string name="fcm_need_config">Paste google-services.json above and tap Apply.</string>
 </resources>
