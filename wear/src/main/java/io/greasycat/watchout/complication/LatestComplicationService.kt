@@ -22,7 +22,9 @@ class LatestComplicationService : SuspendingComplicationDataSourceService() {
         ShortTextComplicationData.Builder(
             text = PlainComplicationText.Builder(text).build(),
             contentDescription = PlainComplicationText.Builder("$title: $text").build(),
-        ).setTitle(PlainComplicationText.Builder(title).build()).build()
+        ).setTitle(PlainComplicationText.Builder(title).build())
+            .setTapAction(openWatchApp(this))
+            .build()
 }
 
 private fun statusWord(s: String) = when (s) {
