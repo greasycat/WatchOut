@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
             val id = adapter.ids().getOrNull(pager.currentItem) ?: return@setOnClickListener
             Prefs.deleteSession(this, id)
             StatusNotification.update(this) // latest session may have changed
+            WatchSync.push(this) // reflect the deletion on the watch
             refresh()
         }
     }

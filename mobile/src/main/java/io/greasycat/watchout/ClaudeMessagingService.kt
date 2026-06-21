@@ -54,6 +54,8 @@ class ClaudeMessagingService : FirebaseMessagingService() {
         sendBroadcast(Intent(Prefs.ACTION_STATUS).setPackage(packageName))
         // Refresh the persistent status notification (mirrors the blob).
         StatusNotification.update(this)
+        // Mirror all sessions to the watch.
+        WatchSync.push(this)
         // Only the come-back signals buzz; thinking/update just update the blob silently.
         if (status == "needs_input" || status == "done") {
             notify(title, body, urgent = status == "needs_input")
