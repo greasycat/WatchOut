@@ -13,14 +13,16 @@ Do this:
 
 1. **Find & show current config.** Resolve the path above. If the file exists, read it and
    show the current `transport` and its fields — but **never print secret values**
-   (`device_token`, `service_account`); just say whether each is set. If it doesn't exist,
+   (`device_token`, `service_account`, `direct_token`); just say whether each is set. If it doesn't exist,
    say so; you'll create it.
 
 2. **Pick the transport.** If `$ARGUMENTS` already names one of `direct`/`ntfy`/`fcm`, use it.
    Otherwise ask with AskUserQuestion. What each needs:
    - **direct** (default, no Firebase) — phone runs an HTTP listener on your LAN/Tailscale.
      `direct_host` = the phone's IP (shown in the app's Settings → Direct), or omit it to
-     auto-discover via mDNS. Optional `direct_port` (default `8787`).
+     auto-discover via mDNS. Optional `direct_port` (default `8787`). `direct_token` = the
+     shared secret shown in the app's Settings → Direct (POSTs without it are rejected; omit
+     only if the user has cleared the token on the phone).
    - **ntfy** (no Firebase) — `ntfy_server` (e.g. `https://ntfy.sh` or `http://<host>:8080`)
      and `ntfy_topic` (must match the app's Settings → ntfy).
    - **fcm** (Firebase push) — `project_id`, `service_account` (absolute path to the
@@ -39,7 +41,8 @@ Do this:
    matching transport in the phone app's Settings. The change takes effect on the next hook
    fire (a new Claude Code session, since hook config is read at startup).
 
-Validation before writing: `direct` needs `direct_host` or an explicit choice to use mDNS;
+Validation before writing: `direct` needs `direct_host` or an explicit choice to use mDNS,
+plus `direct_token` (unless the user has cleared it on the phone);
 `ntfy` needs both `ntfy_server` and `ntfy_topic`; `fcm` needs `project_id`,
 `service_account`, and `device_token`. If something required is missing, ask — don't write a
 half-configured file.

@@ -6,9 +6,10 @@
   "project_id": "your-firebase-project-id",
   "device_token": "paste-the-token-shown-in-the-phone-app",
 
-  "_direct": "transport=direct — POST straight to the phone (LAN/Tailscale). direct_host optional (mDNS auto-discovers via the zeroconf pip package).",
+  "_direct": "transport=direct — POST straight to the phone (LAN/Tailscale). direct_host optional (mDNS auto-discovers via the zeroconf pip package). direct_token = the shared secret shown in the phone's Direct settings.",
   "direct_host": "192.168.1.50",
   "direct_port": 8787,
+  "direct_token": "paste-the-token-shown-in-the-phone-app",
 
   "_ntfy": "transport=ntfy — publish to an ntfy topic the phone subscribes to.",
   "ntfy_server": "https://ntfy.sh",

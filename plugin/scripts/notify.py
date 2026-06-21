@@ -247,9 +247,13 @@ def _send_direct(cfg: dict, data: dict) -> None:
         print("[notify] direct: no host (set direct_host, or enable mDNS)", file=sys.stderr)
         return
     port = cfg.get("direct_port", 8787)
+    headers = {"Content-Type": "application/json"}
+    # Optional shared secret — must match the token shown in the phone's Direct settings.
+    # Omit it and the phone accepts any LAN/Tailscale POST (legacy, less safe).
+    if cfg.get("direct_token"):
+        headers["X-WatchOut-Token"] = cfg["direct_token"]
     try:
-        _http_post(f"http://{host}:{port}/", json.dumps(data).encode(),
-                   {"Content-Type": "application/json"}, timeout=4)
+        _http_post(f"http://{host}:{port}/", json.dumps(data).encode(), headers, timeout=4)
     except Exception as exc:
         print(f"[notify] direct post failed: {exc}", file=sys.stderr)
 
@@ -267,7 +271,33 @@ def _send_ntfy(cfg: dict, data: dict) -> None:
         print(f"[notify] ntfy post failed: {exc}", file=sys.stderr)
 
 
+_HOST_CACHE_TTL = 300  # seconds — mDNS is slow (~1.5s); don't re-discover every hook fire.
+
+
 def _discover_host():
+    """The phone's host, cached so we don't pay the mDNS 1.5s sleep on every hook.
+    Cache hit (fresh & non-empty) skips zeroconf entirely; miss re-discovers and rewrites."""
+    import tempfile
+    import time as _time
+
+    cache = pathlib.Path(tempfile.gettempdir()) / "watchout_direct_host"
+    try:
+        if _time.time() - cache.stat().st_mtime < _HOST_CACHE_TTL:
+            host = cache.read_text().strip()
+            if host:
+                return host
+    except OSError:
+        pass
+    host = _mdns_discover()
+    if host:
+        try:
+            cache.write_text(host)
+        except OSError:
+            pass
+    return host
+
+
+def _mdns_discover():
     """Best-effort mDNS lookup of the phone's _watchout._tcp service."""
     try:
         import socket
@@ -364,6 +394,12 @@ def _selftest() -> int:
     # project name = basename of cwd (follows cd)
     d1 = build_data({"hook_event_name": "Stop", "transcript_path": "/no", "cwd": "/home/u/MyProj/"})
     assert d1["project"] == "MyProj", d1["project"]
+
+    # direct host cache: a fresh cache file is returned without touching mDNS
+    cache = pathlib.Path(tempfile.gettempdir()) / "watchout_direct_host"
+    cache.write_text("10.1.2.3")
+    assert _discover_host() == "10.1.2.3", _discover_host()
+    cache.unlink()
 
     print("notify selftest: OK")
     return 0

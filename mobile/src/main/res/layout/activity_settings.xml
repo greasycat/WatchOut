@@ -156,6 +156,25 @@
                 android:autofillHints="" />
 
             <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/direct_token_help"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <EditText
+                android:id="@+id/direct_token"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/direct_token_hint"
+                android:inputType="text"
+                android:fontFamily="monospace"
+                android:textIsSelectable="true"
+                android:autofillHints="" />
+
+            <TextView
                 android:id="@+id/direct_ips"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

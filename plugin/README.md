@@ -45,9 +45,11 @@ The hook reads `transport` from the config — `direct` (default), `ntfy`, or `f
 
 ### direct (phone-as-server, LAN / Tailscale) — default, stdlib
 
-- Phone app → Settings → **Direct**; note the shown `IP:port`, tap **Test listener**.
-- Config: `"transport":"direct"`. Optional `"direct_host"`/`"direct_port"` — omit the host
-  to auto-discover via mDNS (needs the `zeroconf` pip package; without it, set `direct_host`).
+- Phone app → Settings → **Direct**; note the shown `IP:port` and the **token**, tap **Test listener**.
+- Config: `"transport":"direct"`, `"direct_token"` = the token shown in the app (shared secret;
+  POSTs without it are rejected — clear it on the phone to accept any device, less safe). Optional
+  `"direct_host"`/`"direct_port"` — omit the host to auto-discover via mDNS (needs the `zeroconf`
+  pip package; without it, set `direct_host`).
 
 ### ntfy (self-host or ntfy.sh) — stdlib
 

@@ -125,6 +125,14 @@ class SettingsActivity : AppCompatActivity() {
             e?.toString()?.toIntOrNull()?.let { if (it in 1..65535) Prefs.setDirectPort(this, it) }
         }
 
+        // Shared secret: auto-generate once so direct is authed by default; user copies it into the hook config.
+        val tokenField = findViewById<EditText>(R.id.direct_token)
+        if (Prefs.directToken(this).isEmpty()) {
+            Prefs.setDirectToken(this, java.util.UUID.randomUUID().toString().replace("-", "").take(20))
+        }
+        tokenField.setText(Prefs.directToken(this))
+        tokenField.doAfterTextChanged { Prefs.setDirectToken(this, it?.toString().orEmpty().trim()) }
+
         val ips = findViewById<TextView>(R.id.direct_ips)
         val p = Prefs.directPort(this)
         val list = NetUtils.localIps()

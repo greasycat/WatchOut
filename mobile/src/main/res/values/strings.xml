@@ -32,6 +32,8 @@
     <string name="transport_ntfy">ntfy</string>
     <string name="direct_help">This phone runs a listener; point the dev machine at one of the addresses below (or let it auto-discover via mDNS).</string>
     <string name="direct_port_hint">Port (default 8787)</string>
+    <string name="direct_token_help">Shared secret — copy this into your hook config as "direct_token". POSTs without it are rejected. Clear it to accept any device on the network (less safe).</string>
+    <string name="direct_token_hint">Token</string>
     <string name="direct_test">Test listener</string>
     <string name="ntfy_help">Subscribe to an ntfy topic — self-host or use ntfy.sh. The hook publishes to it.</string>
     <string name="ntfy_server_hint">Server (e.g. https://ntfy.sh)</string>

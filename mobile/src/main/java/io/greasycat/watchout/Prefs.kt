@@ -38,6 +38,7 @@ object Prefs {
     private const val KEY_PERSISTENT = "persistent"
     private const val KEY_TRANSPORT = "transport"
     private const val KEY_DIRECT_PORT = "direct_port"
+    private const val KEY_DIRECT_TOKEN = "direct_token"
     private const val KEY_NTFY_SERVER = "ntfy_server"
     private const val KEY_NTFY_TOPIC = "ntfy_topic"
     private const val KEY_FCM_PROJECT = "fcm_project_id"
@@ -72,6 +73,13 @@ object Prefs {
 
     fun setDirectPort(context: Context, p: Int) =
         prefs(context).edit().putInt(KEY_DIRECT_PORT, p).apply()
+
+    /** Shared secret for the direct listener. Empty = accept any POST (legacy).
+     *  Auto-generated once on first view of the Direct settings; copy it into the hook config. */
+    fun directToken(context: Context): String = prefs(context).getString(KEY_DIRECT_TOKEN, "") ?: ""
+
+    fun setDirectToken(context: Context, s: String) =
+        prefs(context).edit().putString(KEY_DIRECT_TOKEN, s).apply()
 
     fun ntfyServer(context: Context): String =
         prefs(context).getString(KEY_NTFY_SERVER, DEFAULT_NTFY_SERVER) ?: DEFAULT_NTFY_SERVER

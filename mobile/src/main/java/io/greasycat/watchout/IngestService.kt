@@ -46,7 +46,9 @@ class IngestService : Service() {
     private fun startDirect() {
         val port = Prefs.directPort(this)
         try {
-            server = DirectServer(port) { f -> StatusIngest.handle(applicationContext, f) }
+            server = DirectServer(port, Prefs.directToken(this)) { f ->
+                StatusIngest.handle(applicationContext, f)
+            }
             server!!.start()
             registerNsd(port)
             Log.i(TAG, "direct server listening on :$port")
