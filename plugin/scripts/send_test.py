@@ -3,11 +3,15 @@
 renders on the phone / watch. Reuses notify.send(), so it exercises the real
 data payload the phone's onMessageReceived() will see.
 
-    tools/.venv/bin/python tools/send_test.py             # send all, 4s apart
-    tools/.venv/bin/python tools/send_test.py --delay 8   # dwell longer on each
-    tools/.venv/bin/python tools/send_test.py --only done thinking
-    tools/.venv/bin/python tools/send_test.py --list      # case names, no network
-    tools/.venv/bin/python tools/send_test.py --dry-run   # print payloads, no network
+Run from this directory (it imports notify.py as a sibling):
+
+    python3 send_test.py             # send all, 4s apart
+    python3 send_test.py --delay 8   # dwell longer on each
+    python3 send_test.py --only done thinking
+    python3 send_test.py --list      # case names, no network
+    python3 send_test.py --dry-run   # print payloads, no network
+
+Whichever transport config.json names is used — only `fcm` needs `google-auth`.
 
 Note: the app uses a fixed notification id, so each message REPLACES the previous
 one on the phone — watch them cycle, or raise --delay to dwell on each.
