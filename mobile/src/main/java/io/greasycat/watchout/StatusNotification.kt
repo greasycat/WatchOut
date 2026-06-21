@@ -3,7 +3,9 @@ package io.greasycat.watchout
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
@@ -37,6 +39,7 @@ object StatusNotification {
             .setSmallIcon(R.drawable.ic_stat_notify)
             .setColor(context.getColor(R.color.claude_orange))
             .setContentTitle("${s.project} · ${titleFor(status)}")
+            .setContentIntent(openAppIntent(context))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -65,6 +68,16 @@ object StatusNotification {
 
     fun cancel(context: Context) {
         NotificationManagerCompat.from(context).cancel(NOTI_ID)
+    }
+
+    /** Tapping any WatchOut notification opens the app's home screen. */
+    fun openAppIntent(context: Context): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
     }
 
     private fun titleFor(status: String?): String = when (status) {

@@ -58,6 +58,7 @@ object StatusIngest {
             .setColor(context.getColor(R.color.claude_orange))
             .setContentTitle(title)
             .setContentText(body)
+            .setContentIntent(StatusNotification.openAppIntent(context))
             .setPriority(
                 if (urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT
             )
