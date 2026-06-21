@@ -9,15 +9,29 @@ usage, recent events) and relays it to the watch — with a buzz when Claude fin
 your input.
 
 ```
-Claude Code hooks ──▶ tools/notify.py ──▶ (FCM | direct | ntfy) ──▶ phone app ──▶ watch
+Claude Code hooks ──▶ plugin/scripts/notify.py ──▶ (FCM | direct | ntfy) ──▶ phone app ──▶ watch
 ```
+
+## Screenshots
+
+| Phone — session view | Watch — mirror |
+|:---:|:---:|
+| <img src="screenshots/phone-thinking.png" width="260"> | <img src="screenshots/watch-thinking.png" width="220"> |
+
+Watch-face complications — the signal glyph carries the status (spark · bell · check):
+
+| Thinking | Needs input | Done |
+|:---:|:---:|:---:|
+| <img src="screenshots/complication-thinking.png" width="200"> | <img src="screenshots/complication-needs-input.png" width="200"> | <img src="screenshots/complication-done.png" width="200"> |
 
 ## Features
 
 - **Live status** — thinking / needs-input / done, current file, elapsed time, token usage.
 - **Multiple sessions** — one tab per project (by `cwd`), swipe between them on phone and watch.
 - **Watch app** — mirrors the phone over the Wear Data Layer; buzzes on done / needs-input.
-- **Watch complications** — *Claude status* (text) and *Claude signal* (red/amber/green dot).
+- **Watch complications** — *Claude status* (text) and *Claude signal*: a status glyph (spark /
+  bell / check / ring) that tints to your watch-face theme on a monochrome slot, or shows the
+  status color (red/amber/green) on a small-image slot.
 - **Three transports**, pick one in Settings — no Firebase required for the first two:
   - **direct** (default) — phone runs a small HTTP listener on your LAN / Tailscale (mDNS auto-discovery).
   - **ntfy** — self-host with Docker or use ntfy.sh.
