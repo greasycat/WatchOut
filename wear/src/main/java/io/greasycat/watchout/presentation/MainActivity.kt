@@ -79,9 +79,27 @@ fun WearApp() {
 
     DisposableEffect(Unit) {
         val client = Wearable.getDataClient(context)
+        // Per-project last-seen status, to buzz only on a real transition. `primed`
+        // stays false until the first payload so the initial load never buzzes.
+        val prevStatus = HashMap<String, String>()
+        var primed = false
         fun apply(dataItem: com.google.android.gms.wearable.DataItem) {
             val dm = DataMapItem.fromDataItem(dataItem).dataMap
-            sessions = parseSessions(dm.getString("payload"), dm.getLong("ts"))
+            val next = parseSessions(dm.getString("payload"), dm.getLong("ts"))
+            if (primed) {
+                var needsInput = false
+                var done = false
+                for (s in next) if (s.status != prevStatus[s.project]) {
+                    if (s.status == "needs_input") needsInput = true
+                    else if (s.status == "done") done = true
+                }
+                if (needsInput) buzz(context, needsInput = true)
+                else if (done) buzz(context, needsInput = false)
+            }
+            prevStatus.clear()
+            for (s in next) prevStatus[s.project] = s.status
+            primed = true
+            sessions = next
             receiptAnchor = SystemClock.elapsedRealtime()
         }
         val listener = DataClient.OnDataChangedListener { buffer ->
@@ -217,6 +235,22 @@ private fun parseSessions(json: String?, phoneNow: Long): List<WatchSession> {
     } catch (e: Exception) {
         emptyList()
     }
+}
+
+/** One pulse for done, a double pulse for needs-input. */
+private fun buzz(context: android.content.Context, needsInput: Boolean) {
+    val vib = if (android.os.Build.VERSION.SDK_INT >= 31) {
+        (context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE)
+                as android.os.VibratorManager).defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+    }
+    val effect = if (needsInput)
+        android.os.VibrationEffect.createWaveform(longArrayOf(0, 130, 110, 130), -1)
+    else
+        android.os.VibrationEffect.createOneShot(170, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+    vib.vibrate(effect)
 }
 
 private fun glyphFor(s: String) = when (s) {
