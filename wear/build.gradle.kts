@@ -20,11 +20,25 @@ android {
 
     }
 
+    // Release signing — only when the env vars are set (CI). Local builds skip it.
+    val keystoreFile = System.getenv("SIGNING_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystoreFile != null) {
+            create("release") {
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
             }
+            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
