@@ -28,6 +28,12 @@ def classify(hook: dict) -> tuple[str, str]:
     event = hook.get("hook_event_name", "")
     tool_input = hook.get("tool_input") or {}
     if event == "Notification":
+        # Claude Code fires Notification both for permission prompts AND for the
+        # idle "waiting for your input" nudge ~60s after a turn ends. The latter
+        # would clobber a fresh "done" (and re-buzz), so drop it — "" = skip send.
+        msg = (hook.get("message") or "").lower()
+        if "waiting for your input" in msg:
+            return "", ""
         return "needs_input", ""
     if event == "Stop":
         return "done", ""
@@ -361,7 +367,9 @@ def main() -> int:
     if "--selftest" in sys.argv:
         return _selftest()
     hook = json.load(sys.stdin)
-    send(build_data(hook))
+    data = build_data(hook)
+    if data["status"]:  # "" → suppressed (e.g. the idle "waiting for input" nudge)
+        send(data)
     return 0
 
 
@@ -369,6 +377,11 @@ def _selftest() -> int:
     import tempfile
 
     assert classify({"hook_event_name": "Notification"})[0] == "needs_input"
+    # permission prompt → needs_input; idle "waiting for input" nudge → suppressed ("")
+    assert classify({"hook_event_name": "Notification",
+                     "message": "Claude needs your permission to use Bash"})[0] == "needs_input"
+    assert classify({"hook_event_name": "Notification",
+                     "message": "Claude is waiting for your input"})[0] == ""
     assert classify({"hook_event_name": "Stop"})[0] == "done"
     assert classify({"hook_event_name": "UserPromptSubmit"})[0] == "thinking"
     s, f = classify({"hook_event_name": "PreToolUse",
