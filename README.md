@@ -30,17 +30,24 @@ Claude Code hooks ──▶ tools/notify.py ──▶ (FCM | direct | ntfy) ─�
 |------|------|
 | `mobile/` | Phone app (Kotlin) — UI, transports, watch sync, notifications |
 | `wear/`   | Wear OS app (Compose) — status screen + complications |
-| `tools/`  | `notify.py` hook + `send_test.py` battery — see [tools/README.md](tools/README.md) |
+| `plugin/` | Claude Code plugin: the `notify.py` hook + manifests — see [plugin/README.md](plugin/README.md) |
 
 ## Quick start
 
 1. **Build & install** the apps from Android Studio (`:mobile` to your phone, `:wear` to the watch).
 2. **Pick a transport** in the phone app's Settings (defaults to *direct* — no Firebase).
-3. **Wire the hook** — set up `tools/.venv` and point Claude Code's hooks at `notify.py`.
-   Full steps (venv, config, transports, FCM) are in **[tools/README.md](tools/README.md)**.
+3. **Install the plugin** so Claude Code's hooks are wired automatically:
 
-`.claude/settings.json` is gitignored (it holds machine-specific paths); use
-`$CLAUDE_PROJECT_DIR` in your own copy so it stays portable.
+   ```sh
+   claude plugin marketplace add greasycat/WatchOut
+   claude plugin install watchout@watchout
+   ```
+
+   Then create `~/.config/watchout/config.json` (`{ "transport": "direct" }` to start).
+   Full config + transports in **[plugin/README.md](plugin/README.md)**.
+
+The default `direct`/`ntfy` transports are pure stdlib — the hook runs on system `python3`
+with nothing to install.
 
 ## License
 

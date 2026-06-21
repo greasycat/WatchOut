@@ -1,0 +1,4 @@
+# Only needed for the `fcm` transport (JWT signing of the service-account token).
+# The default `direct` and `ntfy` transports are pure stdlib — nothing to install.
+#   pip install -r requirements.txt   (into whatever python3 Claude Code runs)
+google-auth

@@ -1,0 +1,13 @@
+{
+  "name": "watchout",
+  "description": "Stream Claude Code status (thinking / needs-input / done, current file, elapsed time, token usage) to the WatchOut phone + Wear OS app.",
+  "version": "1.0.0",
+  "author": {
+    "name": "greasycat",
+    "url": "https://github.com/greasycat/WatchOut"
+  },
+  "homepage": "https://github.com/greasycat/WatchOut",
+  "repository": "https://github.com/greasycat/WatchOut",
+  "license": "MIT",
+  "keywords": ["wear-os", "android", "notifications", "hooks", "status"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "watchout",
+  "owner": {
+    "name": "greasycat",
+    "url": "https://github.com/greasycat/WatchOut"
+  },
+  "plugins": [
+    {
+      "name": "watchout",
+      "source": "./plugin",
+      "description": "Stream Claude Code status to the WatchOut phone + Wear OS app via direct (LAN), ntfy, or FCM."
+    }
+  ]
+}

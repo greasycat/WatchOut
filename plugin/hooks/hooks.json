@@ -1,0 +1,45 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "WATCHOUT_CONFIG=\"${WATCHOUT_CONFIG:-$HOME/.config/watchout/config.json}\" python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notify.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "WATCHOUT_CONFIG=\"${WATCHOUT_CONFIG:-$HOME/.config/watchout/config.json}\" python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notify.py\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "WATCHOUT_CONFIG=\"${WATCHOUT_CONFIG:-$HOME/.config/watchout/config.json}\" python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notify.py\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "WATCHOUT_CONFIG=\"${WATCHOUT_CONFIG:-$HOME/.config/watchout/config.json}\" python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/notify.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

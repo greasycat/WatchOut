@@ -13,12 +13,12 @@ local.properties
 # Local Claude Code hook wiring (machine-specific paths)
 .claude/settings.json
 
-# Firebase / FCM secrets — never commit
+# Plugin runtime config + secrets — never commit
+plugin/config.json
 google-services.json
-tools/config.json
 **/serviceAccountKey*.json
 **/*-firebase-adminsdk-*.json
-tools/.venv/
+**/.venv/
 
 # Python cache
 __pycache__/

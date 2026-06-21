@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""Claude Code hook -> Firebase Cloud Messaging (data message).
+"""Claude Code hook -> WatchOut phone app (status update).
 
-Reads the hook JSON on stdin, classifies it, and POSTs an FCM v1 *data* message
-to the phone's device token. Wire into .claude/settings.json (see tools/README.md).
+Reads the hook JSON on stdin, classifies it (thinking / needs-input / done +
+current file, elapsed, tokens), and ships it over the configured transport:
+  - direct (default): HTTP POST to the phone on the LAN  [stdlib only]
+  - ntfy:             publish to an ntfy topic            [stdlib only]
+  - fcm:              Firebase push                        [needs `google-auth`]
 
-Config: tools/config.json (next to this script)
-    {
-      "service_account": "/abs/path/to/serviceAccountKey.json",
-      "project_id": "your-firebase-project-id",
-      "device_token": "<paste from the phone app screen>"
-    }
-
-Deps: pip install google-auth requests
+Config resolution (see _config_path): $WATCHOUT_CONFIG, else
+$CLAUDE_PLUGIN_DATA/config.json (when run as a plugin), else config.json next to
+this script. See the plugin README for the schema and setup.
 
 A hook must never crash the session, so every failure logs to stderr and exits 0.
 """
@@ -186,62 +184,85 @@ def _access_token(service_account: str) -> str:
     return creds.token
 
 
+def _config_path() -> pathlib.Path:
+    """Where config.json lives. As a plugin, CLAUDE_PLUGIN_DATA survives updates;
+    locally it sits next to this script. WATCHOUT_CONFIG overrides everything."""
+    env = os.environ.get("WATCHOUT_CONFIG")
+    if env:
+        return pathlib.Path(env)
+    data = os.environ.get("CLAUDE_PLUGIN_DATA")
+    if data:
+        return pathlib.Path(data) / "config.json"
+    return HERE / "config.json"
+
+
+def _http_post(url: str, body: bytes, headers: dict | None = None, timeout: int = 10):
+    """POST bytes via stdlib urllib. Returns (status, text); HTTP errors come back
+    as their status (not raised) so callers can log the body. Connection errors raise."""
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(url, data=body, headers=headers or {}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode(errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode(errors="replace")
+
+
 def send(data: dict) -> None:
-    """Dispatch to the configured transport: fcm | direct | ntfy."""
-    cfg = json.loads((HERE / "config.json").read_text())
+    """Dispatch to the configured transport: direct | ntfy | fcm."""
+    cfg = json.loads(_config_path().read_text())
     transport = cfg.get("transport", "direct")
-    if transport == "direct":
-        _send_direct(cfg, data)
-    elif transport == "ntfy":
+    if transport == "ntfy":
         _send_ntfy(cfg, data)
-    else:
+    elif transport == "fcm":
         _send_fcm(cfg, data)
+    else:
+        _send_direct(cfg, data)
 
 
 def _send_fcm(cfg: dict, data: dict) -> None:
-    import requests
-
+    # The only transport needing a third-party dep (google-auth, for JWT signing).
     url = f"https://fcm.googleapis.com/v1/projects/{cfg['project_id']}/messages:send"
     body = {"message": {"token": cfg["device_token"], "data": data, "android": {"priority": "high"}}}
-    resp = requests.post(
-        url,
-        headers={
-            "Authorization": f"Bearer {_access_token(cfg['service_account'])}",
-            "Content-Type": "application/json",
-        },
-        json=body,
-        timeout=10,
-    )
-    if resp.status_code >= 300:
-        print(f"[notify] FCM {resp.status_code}: {resp.text}", file=sys.stderr)
+    try:
+        status, text = _http_post(
+            url,
+            json.dumps(body).encode(),
+            {
+                "Authorization": f"Bearer {_access_token(cfg['service_account'])}",
+                "Content-Type": "application/json",
+            },
+        )
+        if status >= 300:
+            print(f"[notify] FCM {status}: {text}", file=sys.stderr)
+    except Exception as exc:
+        print(f"[notify] FCM post failed: {exc}", file=sys.stderr)
 
 
 def _send_direct(cfg: dict, data: dict) -> None:
-    import requests
-
     host = cfg.get("direct_host") or _discover_host()
     if not host:
         print("[notify] direct: no host (set direct_host, or enable mDNS)", file=sys.stderr)
         return
     port = cfg.get("direct_port", 8787)
     try:
-        requests.post(f"http://{host}:{port}/", json=data, timeout=4)
+        _http_post(f"http://{host}:{port}/", json.dumps(data).encode(),
+                   {"Content-Type": "application/json"}, timeout=4)
     except Exception as exc:
         print(f"[notify] direct post failed: {exc}", file=sys.stderr)
 
 
 def _send_ntfy(cfg: dict, data: dict) -> None:
-    import requests
-
     server = (cfg.get("ntfy_server") or "https://ntfy.sh").rstrip("/")
     topic = cfg.get("ntfy_topic")
     if not topic:
         print("[notify] ntfy: no topic set", file=sys.stderr)
         return
     try:
-        # Send the JSON as the message body (text, not application/json, so ntfy
-        # treats it as the message rather than a JSON-publish envelope).
-        requests.post(f"{server}/{topic}", data=json.dumps(data).encode(), timeout=6)
+        # JSON as the raw message body so ntfy delivers it verbatim (not a publish envelope).
+        _http_post(f"{server}/{topic}", json.dumps(data).encode(), timeout=6)
     except Exception as exc:
         print(f"[notify] ntfy post failed: {exc}", file=sys.stderr)
 
