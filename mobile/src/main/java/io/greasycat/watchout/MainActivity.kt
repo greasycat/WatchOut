@@ -1,86 +1,57 @@
 package io.greasycat.watchout
 
 import android.Manifest
-import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
-import android.animation.ValueAnimator
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import android.view.View
-import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.Button
-import android.widget.TextView
+import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.color.MaterialColors
 
 class MainActivity : AppCompatActivity() {
 
     private val requestNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* result unused */ }
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var pulse: ObjectAnimator? = null
-    private var frame = 0
-
-    // Sparkle frames echo Claude Code's twinkling thinking glyph.
-    private val thinkingFrames = listOf("✶", "✷", "✸", "✹", "✸", "✷")
-
-    // Live elapsed timer: tick up from the value received, anchored to a monotonic clock.
-    private var elapsedBase = 0
-    private var elapsedAnchor = 0L
-
-    private lateinit var blob: View
-    private lateinit var glyph: TextView
-    private lateinit var statusTitle: TextView
-    private lateinit var statusSubtext: TextView
-    private lateinit var statusStats: TextView
-    private lateinit var eventList: TextView
-
-    private val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-
-    private val glyphTick = object : Runnable {
-        override fun run() {
-            glyph.text = thinkingFrames[frame % thinkingFrames.size]
-            frame++
-            handler.postDelayed(this, 120)
-        }
-    }
-
-    private val elapsedTick = object : Runnable {
-        override fun run() {
-            val live = elapsedBase + ((SystemClock.elapsedRealtime() - elapsedAnchor) / 1000).toInt()
-            renderStats(live)
-            handler.postDelayed(this, 1000)
-        }
-    }
+    private lateinit var pager: ViewPager2
+    private lateinit var dots: LinearLayout
+    private lateinit var settingsButton: Button
+    private lateinit var deleteButton: Button
+    private lateinit var adapter: SessionPagerAdapter
 
     private val statusReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) = render()
+        override fun onReceive(context: Context?, intent: Intent?) = refresh()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        applyInsetPadding(R.id.main)
 
-        blob = findViewById(R.id.blob)
-        glyph = findViewById(R.id.glyph)
-        statusTitle = findViewById(R.id.status_title)
-        statusSubtext = findViewById(R.id.status_subtext)
-        statusStats = findViewById(R.id.status_stats)
-        eventList = findViewById(R.id.event_list)
+        pager = findViewById(R.id.pager)
+        dots = findViewById(R.id.dots)
+        settingsButton = findViewById(R.id.settings_button)
+        deleteButton = findViewById(R.id.delete_button)
+        applyInsets()
+
+        adapter = SessionPagerAdapter(this)
+        pager.adapter = adapter
+        pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) = renderDots(adapter.itemCount, position)
+        })
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -90,7 +61,13 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
         findViewById<Button>(R.id.open_settings).setOnClickListener(openSettings)
-        findViewById<Button>(R.id.settings_button).setOnClickListener(openSettings)
+        settingsButton.setOnClickListener(openSettings)
+        deleteButton.setOnClickListener {
+            val id = adapter.ids().getOrNull(pager.currentItem) ?: return@setOnClickListener
+            Prefs.deleteSession(this, id)
+            StatusNotification.update(this) // latest session may have changed
+            refresh()
+        }
     }
 
     override fun onResume() {
@@ -99,131 +76,64 @@ class MainActivity : AppCompatActivity() {
             this, statusReceiver, IntentFilter(Prefs.ACTION_STATUS),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        render()
+        refresh()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterReceiver(statusReceiver)
-        stopThinking()
     }
 
-    private fun render() {
-        val activated = Prefs.isActivated(this)
-        findViewById<View>(R.id.setup_card).visibility = if (activated) View.GONE else View.VISIBLE
-        findViewById<View>(R.id.status_box).visibility = if (activated) View.VISIBLE else View.GONE
-        findViewById<View>(R.id.settings_button).visibility = if (activated) View.VISIBLE else View.GONE
-        if (!activated) {
-            stopThinking()
+    private fun refresh() {
+        val ids = Prefs.sessionIds(this)
+        val active = ids.isNotEmpty()
+        findViewById<View>(R.id.setup_card).visibility = if (active) View.GONE else View.VISIBLE
+        pager.visibility = if (active) View.VISIBLE else View.GONE
+        settingsButton.visibility = if (active) View.VISIBLE else View.GONE
+        deleteButton.visibility = if (active) View.VISIBLE else View.GONE
+        if (active) {
+            adapter.submit(ids)
+            renderDots(ids.size, pager.currentItem)
+        } else {
+            dots.visibility = View.GONE
+        }
+    }
+
+    /** Minimalistic dotted page indicator; hidden for a single session. */
+    private fun renderDots(count: Int, selectedRaw: Int) {
+        dots.removeAllViews()
+        if (count <= 1) {
+            dots.visibility = View.GONE
             return
         }
-
-        val detail = Prefs.detail(this)
-        statusSubtext.text = detail
-        statusSubtext.visibility = if (detail.isEmpty()) View.GONE else View.VISIBLE
-
-        when (Prefs.status(this)) {
-            "thinking", "update" -> {
-                statusTitle.setText(R.string.status_thinking)
-                startThinking() // also starts the live elapsed ticker (which renders stats)
+        dots.visibility = View.VISIBLE
+        val selected = selectedRaw.coerceIn(0, count - 1)
+        val primary = MaterialColors.getColor(dots, com.google.android.material.R.attr.colorPrimary)
+        val muted = ColorUtils.setAlphaComponent(primary, 70)
+        val d = resources.displayMetrics.density
+        val size = (8 * d).toInt()
+        val margin = (5 * d).toInt()
+        for (i in 0 until count) {
+            val dot = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    marginStart = margin; marginEnd = margin
+                }
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.dot)
+                backgroundTintList = ColorStateList.valueOf(if (i == selected) primary else muted)
             }
-            "needs_input" -> {
-                statusTitle.setText(R.string.status_needs)
-                stopThinking(staticGlyph = "✦")
-                renderStats(Prefs.elapsedSeconds(this))
-            }
-            "done" -> {
-                statusTitle.setText(R.string.status_done)
-                stopThinking(staticGlyph = "✓")
-                renderStats(Prefs.elapsedSeconds(this))
-            }
-            else -> {
-                statusTitle.setText(R.string.status_connected)
-                stopThinking(staticGlyph = "✦")
-                renderStats(Prefs.elapsedSeconds(this))
-            }
-        }
-        renderEvents()
-    }
-
-    private fun renderEvents() {
-        val k = Prefs.eventCount(this)
-        val lines = Prefs.events(this).take(k).joinToString("\n") { e ->
-            val text = e.detail.ifEmpty { statusWord(e.status) }
-            "${timeFmt.format(java.util.Date(e.time))}  ${glyphFor(e.status)}  $text"
-        }
-        eventList.text = lines
-        eventList.visibility = if (k == 0 || lines.isEmpty()) View.GONE else View.VISIBLE
-    }
-
-    private fun glyphFor(status: String): String = when (status) {
-        "needs_input" -> "✦"
-        "done" -> "✓"
-        "thinking", "update" -> "✶"
-        else -> "·"
-    }
-
-    private fun statusWord(status: String): String = when (status) {
-        "needs_input" -> "Needs you"
-        "done" -> "Done"
-        "thinking", "update" -> "Working"
-        else -> status
-    }
-
-    /** elapsedSeconds < 0 hides the time chip; tokens hidden when both are zero. */
-    private fun renderStats(elapsedSeconds: Int) {
-        val parts = mutableListOf<String>()
-        if (elapsedSeconds >= 0) parts.add(formatElapsed(elapsedSeconds))
-        val tin = Prefs.tokIn(this)
-        val tout = Prefs.tokOut(this)
-        if (tin > 0 || tout > 0) parts.add("↑${formatTokens(tin)}  ↓${formatTokens(tout)}")
-        statusStats.text = parts.joinToString("    ·    ")
-        statusStats.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
-    }
-
-    private fun formatElapsed(s: Int): String =
-        if (s < 60) "${s}s" else "${s / 60}m ${s % 60}s"
-
-    private fun formatTokens(n: Int): String =
-        if (n >= 1000) String.format("%.1fk", n / 1000.0) else n.toString()
-
-    private fun startThinking() {
-        handler.removeCallbacks(glyphTick)
-        handler.post(glyphTick)
-        elapsedBase = Prefs.elapsedSeconds(this).coerceAtLeast(0)
-        elapsedAnchor = SystemClock.elapsedRealtime()
-        handler.removeCallbacks(elapsedTick)
-        handler.post(elapsedTick)
-        if (pulse?.isStarted != true) {
-            pulse = ObjectAnimator.ofPropertyValuesHolder(
-                blob,
-                PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.06f),
-                PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.06f),
-            ).apply {
-                duration = 900
-                repeatCount = ValueAnimator.INFINITE
-                repeatMode = ValueAnimator.REVERSE
-                interpolator = AccelerateDecelerateInterpolator()
-                start()
-            }
+            dots.addView(dot)
         }
     }
 
-    private fun stopThinking(staticGlyph: String? = null) {
-        handler.removeCallbacks(glyphTick)
-        handler.removeCallbacks(elapsedTick)
-        pulse?.cancel()
-        pulse = null
-        blob.scaleX = 1f
-        blob.scaleY = 1f
-        if (staticGlyph != null) glyph.text = staticGlyph
-    }
-
-    private fun applyInsetPadding(rootId: Int) {
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(rootId)) { v, insets ->
+    /** Top + side insets on the root; the Settings bar stays flush to the bottom,
+     *  padding its label clear of the gesture bar. */
+    private fun applyInsets() {
+        val base = (16 * resources.displayMetrics.density).toInt()
+        val top = (24 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val pad = (24 * resources.displayMetrics.density).toInt()
-            v.setPadding(bars.left + pad, bars.top + pad, bars.right + pad, bars.bottom + pad)
+            v.setPadding(bars.left, bars.top + top, bars.right, 0)
+            settingsButton.setPadding(0, base, 0, base + bars.bottom)
             insets
         }
     }

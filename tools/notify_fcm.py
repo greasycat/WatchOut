@@ -163,11 +163,14 @@ def build_data(hook: dict) -> dict:
     else:
         tok_in, tok_out = token_usage(transcript)
         elapsed = turn_elapsed_seconds(transcript)
+    cwd = (hook.get("cwd") or "").rstrip("/")
     return {
         "status": status,
         "file": os.path.basename(file_path) if file_path else "",
         "summary": last_thinking(transcript),
-        "session": (hook.get("session_id") or "")[:8],
+        "session": hook.get("session_id") or "",
+        # Live project name: basename of the session's CURRENT cwd, so it follows `cd`.
+        "project": os.path.basename(cwd) or "—",
         "tok_in": str(tok_in),
         "tok_out": str(tok_out),
         "elapsed_s": "" if elapsed is None else str(elapsed),
@@ -270,6 +273,10 @@ def _selftest() -> int:
     d0 = build_data({"hook_event_name": "UserPromptSubmit", "transcript_path": path2})
     assert d0["tok_in"] == "0" and d0["tok_out"] == "0" and d0["elapsed_s"] == "0", d0
     os.unlink(path2)
+
+    # project name = basename of cwd (follows cd)
+    d1 = build_data({"hook_event_name": "Stop", "transcript_path": "/no", "cwd": "/home/u/MyProj/"})
+    assert d1["project"] == "MyProj", d1["project"]
 
     print("notify_fcm selftest: OK")
     return 0

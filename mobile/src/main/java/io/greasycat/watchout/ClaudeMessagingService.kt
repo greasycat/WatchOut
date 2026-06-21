@@ -28,16 +28,19 @@ class ClaudeMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val d = message.data
+        val sessionId = d["session"].orEmpty()
+        val project = d["project"].orEmpty().ifEmpty { "Claude" }
         val status = d["status"] ?: "update"
         val file = d["file"].orEmpty()
         val summary = d["summary"].orEmpty()
 
-        val title = when (status) {
-            "needs_input" -> "Claude needs you"
-            "done" -> "Claude finished"
-            "thinking" -> "Claude working"
-            else -> "Claude"
+        val short = when (status) {
+            "needs_input" -> "needs you"
+            "done" -> "finished"
+            "thinking" -> "working"
+            else -> "active"
         }
+        val title = "$project · Claude $short"
         val body = listOf(file, summary)
             .filter { it.isNotEmpty() }
             .joinToString(" — ")
@@ -46,7 +49,7 @@ class ClaudeMessagingService : FirebaseMessagingService() {
         val tokIn = d["tok_in"]?.toIntOrNull() ?: 0
         val tokOut = d["tok_out"]?.toIntOrNull() ?: 0
         val elapsed = d["elapsed_s"]?.toIntOrNull() ?: -1
-        Prefs.setStatus(this, status, body, tokIn, tokOut, elapsed)
+        Prefs.setStatus(this, sessionId, project, status, body, tokIn, tokOut, elapsed)
         // Nudge an open home screen to re-render (and animate) the status blob.
         sendBroadcast(Intent(Prefs.ACTION_STATUS).setPackage(packageName))
         // Refresh the persistent status notification (mirrors the blob).

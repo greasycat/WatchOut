@@ -20,25 +20,23 @@ object StatusNotification {
     @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled()
     fun update(context: Context) {
         val mgr = NotificationManagerCompat.from(context)
-        if (!Prefs.persistentEnabled(context) ||
-            !Prefs.isActivated(context) ||
-            !mgr.areNotificationsEnabled()
-        ) {
+        val s = Prefs.latestSession(context)
+        if (!Prefs.persistentEnabled(context) || s == null || !mgr.areNotificationsEnabled()) {
             mgr.cancel(NOTI_ID)
             return
         }
         ensureChannel(context)
 
-        val status = Prefs.status(context)
-        val detail = Prefs.detail(context)
-        val tin = Prefs.tokIn(context)
-        val tout = Prefs.tokOut(context)
-        val elapsed = Prefs.elapsedSeconds(context)
+        val status = s.status
+        val detail = s.detail
+        val tin = s.tokIn
+        val tout = s.tokOut
+        val elapsed = s.elapsed
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notify)
             .setColor(context.getColor(R.color.claude_orange))
-            .setContentTitle(titleFor(status))
+            .setContentTitle("${s.project} · ${titleFor(status)}")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)

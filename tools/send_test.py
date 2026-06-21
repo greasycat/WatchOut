@@ -47,6 +47,8 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--delay", type=float, default=4.0, help="seconds between sends")
     p.add_argument("--only", nargs="+", metavar="CASE", help="send only these cases")
+    p.add_argument("--session", default="test1234", help="session id (one tab per id)")
+    p.add_argument("--project", default="WatchOut", help="project/session display name")
     p.add_argument("--list", action="store_true", help="list case names and exit")
     p.add_argument("--dry-run", action="store_true", help="print payloads, no network")
     args = p.parse_args()
@@ -62,7 +64,7 @@ def main() -> int:
         return 1
 
     for i, name in enumerate(cases):
-        data = BATTERY[name]
+        data = {**BATTERY[name], "session": args.session, "project": args.project}
         print(f"[{name}] {data}")
         if not args.dry_run:
             notify_fcm.send(data)

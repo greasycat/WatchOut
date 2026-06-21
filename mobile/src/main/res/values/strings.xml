@@ -24,4 +24,5 @@
     <string name="token_copied">Token copied</string>
     <string name="events_heading">Events under the blob: %1$d</string>
     <string name="persistent_label">Persistent status notification</string>
+    <string name="delete_session">Delete session</string>
 </resources>
