@@ -272,28 +272,57 @@ def _send_ntfy(cfg: dict, data: dict) -> None:
 
 
 _HOST_CACHE_TTL = 300  # seconds — mDNS is slow (~1.5s); don't re-discover every hook fire.
+_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)  # not on Windows
+
+
+def _host_cache_path() -> pathlib.Path:
+    """Per-user, owner-only cache dir — NOT shared /tmp. The cached host decides where
+    we POST the direct_token, so a world-writable predictable path would let another
+    local user redirect the secret. ~/.cache is theirs alone."""
+    base = pathlib.Path(os.path.expanduser("~/.cache/watchout"))
+    base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return base / "direct_host"
+
+
+def _read_cached_host():
+    """Fresh cached host, or None. Refuses anything not a regular owner-only file we own,
+    and never follows a symlink — the value gates where the token is sent."""
+    import time as _time
+
+    try:
+        fd = os.open(_host_cache_path(), os.O_RDONLY | _O_NOFOLLOW)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if hasattr(os, "geteuid") and (st.st_uid != os.geteuid() or st.st_mode & 0o077):
+            return None  # not ours, or group/world-accessible → don't trust it
+        if _time.time() - st.st_mtime >= _HOST_CACHE_TTL:
+            return None
+        return os.read(fd, 256).decode(errors="replace").strip() or None
+    finally:
+        os.close(fd)
+
+
+def _write_cached_host(host: str) -> None:
+    try:
+        fd = os.open(_host_cache_path(),
+                     os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(host)
+    except OSError:
+        pass
 
 
 def _discover_host():
     """The phone's host, cached so we don't pay the mDNS 1.5s sleep on every hook.
-    Cache hit (fresh & non-empty) skips zeroconf entirely; miss re-discovers and rewrites."""
-    import tempfile
-    import time as _time
-
-    cache = pathlib.Path(tempfile.gettempdir()) / "watchout_direct_host"
-    try:
-        if _time.time() - cache.stat().st_mtime < _HOST_CACHE_TTL:
-            host = cache.read_text().strip()
-            if host:
-                return host
-    except OSError:
-        pass
+    Cache hit (fresh, owner-only) skips zeroconf entirely; miss re-discovers and rewrites."""
+    host = _read_cached_host()
+    if host:
+        return host
     host = _mdns_discover()
     if host:
-        try:
-            cache.write_text(host)
-        except OSError:
-            pass
+        _write_cached_host(host)
     return host
 
 
@@ -395,10 +424,12 @@ def _selftest() -> int:
     d1 = build_data({"hook_event_name": "Stop", "transcript_path": "/no", "cwd": "/home/u/MyProj/"})
     assert d1["project"] == "MyProj", d1["project"]
 
-    # direct host cache: a fresh cache file is returned without touching mDNS
-    cache = pathlib.Path(tempfile.gettempdir()) / "watchout_direct_host"
-    cache.write_text("10.1.2.3")
+    # direct host cache: a fresh owner-only cache file is returned without touching mDNS
+    _write_cached_host("10.1.2.3")
+    assert _read_cached_host() == "10.1.2.3", _read_cached_host()
     assert _discover_host() == "10.1.2.3", _discover_host()
+    cache = _host_cache_path()
+    assert cache.stat().st_mode & 0o077 == 0, "cache must not be group/world accessible"
     cache.unlink()
 
     print("notify selftest: OK")
