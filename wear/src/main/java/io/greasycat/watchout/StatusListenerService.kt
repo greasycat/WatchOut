@@ -2,10 +2,6 @@ package io.greasycat.watchout
 
 import android.content.ComponentName
 import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
@@ -47,25 +43,14 @@ class StatusListenerService : WearableListenerService() {
                 if (u >= updated) { updated = u; status = o.optString("s", "") }
             }
         }
-        if (status != "needs_input" && status != "done") return
-
         val prefs = getSharedPreferences("watchout_wear", Context.MODE_PRIVATE)
         if (updated <= prefs.getLong("last_buzz_u", Long.MIN_VALUE)) return
-        prefs.edit().putLong("last_buzz_u", updated).apply()
+        val prev = prefs.getString("last_status", "") ?: ""
+        prefs.edit().putLong("last_buzz_u", updated).putString("last_status", status).apply()
 
-        buzz(urgent = status == "needs_input")
-    }
-
-    private fun buzz(urgent: Boolean) {
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-        if (!vibrator.hasVibrator()) return
-        // needs-input is more urgent → a double pulse; done → a single pulse.
-        val timings = if (urgent) longArrayOf(0, 250, 150, 250) else longArrayOf(0, 300)
-        vibrator.vibrate(VibrationEffect.createWaveform(timings, -1))
+        val kind = Buzz.of(status) ?: return
+        // Thinking buzzes only on the *start* — skip if we were already thinking.
+        if (kind == Buzz.THINKING && (prev == "thinking" || prev == "update")) return
+        buzz(this, kind)
     }
 }

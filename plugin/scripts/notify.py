@@ -28,13 +28,19 @@ def classify(hook: dict) -> tuple[str, str]:
     event = hook.get("hook_event_name", "")
     tool_input = hook.get("tool_input") or {}
     if event == "Notification":
-        # Claude Code fires Notification both for permission prompts AND for the
-        # idle "waiting for your input" nudge ~60s after a turn ends. The latter
-        # would clobber a fresh "done" (and re-buzz), so drop it — "" = skip send.
+        # Claude Code fires Notification for a few things. Separate them:
+        #   - idle "waiting for your input" nudge ~60s after a turn ends → drop it
+        #     ("" = skip send); it'd clobber a fresh "done" and re-buzz.
+        #   - permission prompt ("needs your permission to use X") → a real decision
+        #     the user must make → needs_input (urgent).
+        #   - anything else (e.g. finished and asking a follow-up) → treat as done,
+        #     i.e. completed, not an urgent decision.
         msg = (hook.get("message") or "").lower()
         if "waiting for your input" in msg:
             return "", ""
-        return "needs_input", ""
+        if "permission" in msg:
+            return "needs_input", ""
+        return "done", ""
     if event == "Stop":
         return "done", ""
     if event == "UserPromptSubmit":  # turn started → blob starts animating
@@ -376,12 +382,14 @@ def main() -> int:
 def _selftest() -> int:
     import tempfile
 
-    assert classify({"hook_event_name": "Notification"})[0] == "needs_input"
-    # permission prompt → needs_input; idle "waiting for input" nudge → suppressed ("")
+    # permission prompt → needs_input (a real decision); idle nudge → suppressed ("");
+    # any other notification (e.g. finished + follow-up question) → done, not urgent.
     assert classify({"hook_event_name": "Notification",
                      "message": "Claude needs your permission to use Bash"})[0] == "needs_input"
     assert classify({"hook_event_name": "Notification",
                      "message": "Claude is waiting for your input"})[0] == ""
+    assert classify({"hook_event_name": "Notification", "message": "anything else?"})[0] == "done"
+    assert classify({"hook_event_name": "Notification"})[0] == "done"
     assert classify({"hook_event_name": "Stop"})[0] == "done"
     assert classify({"hook_event_name": "UserPromptSubmit"})[0] == "thinking"
     s, f = classify({"hook_event_name": "PreToolUse",
